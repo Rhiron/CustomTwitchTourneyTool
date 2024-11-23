@@ -13,7 +13,7 @@ Setup Instructions:
 -------------------
 1. Run `main.exe`.
 2. If prompted, enter your OBS WebSocket password. The password is saved securely in a `config.txt` file for future use.
-   2.1. You can find the password in OBS Studio Tools > WebSocket Server Setting > Show Connect Info > Server Password (Copy this value)
+   1. You can find the password in OBS Studio Tools > WebSocket Server Setting > Show Connect Info > Server Password (Copy this value)
 4. Use the GUI to:
    - Enter player names.
    - Select character images from the dropdown (images must be in the `StockIcons` folder).
