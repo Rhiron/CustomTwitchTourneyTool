@@ -9,16 +9,21 @@ Requirements:
 2. OBS WebSocket plugin enabled and configured (default port: 4455).
 3. Character images stored in the `StockIcons` folder.
 
-Setup Instructions:
+OBS Setup Instructions:
+-----------------------
+1. Create text objects in the desired scene (Player1Name, Player2Name, SetCount)
+2. Create Image objects in the desired scene (Player1Image, Player2Image)
+
+Running Instructions:
 -------------------
 1. Run `main.exe`.
 2. If prompted, enter your OBS WebSocket password. The password is saved securely in a `config.txt` file for future use.
-   1. You can find the password in OBS Studio Tools > WebSocket Server Setting > Show Connect Info > Server Password (Copy this value)
-4. Use the GUI to:
+    1. You can find the password in OBS Studio Tools > WebSocket Server Setting > Show Connect Info > Server Password (Copy this value)
+3. Use the GUI to:
    - Enter player names.
    - Select character images from the dropdown (images must be in the `StockIcons` folder).
    - Update the set count.
-5. Click "Update OBS" to apply changes to your OBS scene.
+4. Click "Update OBS" to apply changes to your OBS scene.
 
 Notes:
 ------
