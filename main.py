@@ -1,106 +1,141 @@
-import time
+import tkinter as tk
+from tkinter import ttk, simpledialog, messagebox
 import obsws_python as obs
 import os
 
 # OBS WebSocket connection details
 OBS_HOST = "localhost"  # Default localhost
 OBS_PORT = 4455         # Default WebSocket port
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_DIRECTORY = os.path.join(BASE_DIR, "StockIcons")
+CONFIG_FILE_PATH = os.path.join(BASE_DIR, "config.txt")
 
-# Text source names in OBS
+# OBS source names
 PLAYER_1_SOURCE = "Player1Name"
 PLAYER_2_SOURCE = "Player2Name"
 PLAYER_1_IMAGE_SOURCE = "Player1Image"
 PLAYER_2_IMAGE_SOURCE = "Player2Image"
+SET_COUNT_SOURCE = "SetCount"
 
-# Path to the TXT file that commentators will edit
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TXT_FILE_PATH = os.path.join(BASE_DIR, "player_names.txt")
-IMAGE_DIRECTORY = os.path.join(BASE_DIR, "StockIcons")
-CONFIG_FILE_PATH = os.path.join(BASE_DIR, "config.txt")
-
-def connect_to_obs():
-    """Connect to OBS WebSocket."""
-    try:
-        client = obs.ReqClient(host=OBS_HOST, port=OBS_PORT, password=OBS_PASSWORD)
-        print("Connected to OBS.")
-        return client
-    except Exception as e:
-        print(f"Failed to connect to OBS: {e}")
-        return None
-    
 def get_obs_password():
-    """Read the OBS password from the config file."""
+    """Read OBS password from the config file or prompt the user."""
     try:
         with open(CONFIG_FILE_PATH, "r") as f:
             for line in f:
                 if line.startswith("OBS_PASSWORD="):
                     return line.strip().split("=", 1)[1]
-        print("OBS_PASSWORD not found in config.txt.")
     except FileNotFoundError:
-        print("config.txt not found. Please create it.")
-    return ""
-OBS_PASSWORD = get_obs_password()
-def update_text_sources(client, player1, player2):
-    """Update OBS text sources with player names."""
+        print("config.txt not found.")
+        return prompt_for_password()
+
+def save_obs_password(password):
+    """Save the OBS password to the config file."""
     try:
-        client.set_input_settings(PLAYER_1_SOURCE, {"text": player1}, overlay=True)
-        client.set_input_settings(PLAYER_2_SOURCE, {"text": player2}, overlay=True)
-        print(f"Updated names: Player 1 = {player1}, Player 2 = {player2}")
+        with open(CONFIG_FILE_PATH, "w") as f:
+            f.write(f"OBS_PASSWORD={password}\n")
+        print("OBS password saved to config.txt.")
     except Exception as e:
-        print(f"Failed to update text sources: {e}")
+        print(f"Failed to save OBS password: {e}")
+        messagebox.showerror("Error", "Failed to save OBS password.")
 
-def update_image_sources(client, player1_image, player2_image):
-    """Update OBS image sources with player images."""
+def prompt_for_password():
+    """Prompt the user for the OBS password using a GUI."""
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    password = simpledialog.askstring("OBS Password", "Enter your OBS WebSocket password:", show='*')
+    if password:
+        save_obs_password(password)
+    return password or ""
+
+def connect_to_obs(password):
+    """Connect to OBS WebSocket."""
     try:
-        player1_path = os.path.join(IMAGE_DIRECTORY, f"{player1_image}.png")
-        player2_path = os.path.join(IMAGE_DIRECTORY, f"{player2_image}.png")
-
-        if os.path.exists(player1_path):
-            client.set_input_settings(PLAYER_1_IMAGE_SOURCE, {"file": player1_path}, overlay=True)
-        else:
-            print(f"Image not found for Player 1: {player1_path}")
-
-        if os.path.exists(player2_path):
-            client.set_input_settings(PLAYER_2_IMAGE_SOURCE, {"file": player2_path}, overlay=True)
-        else:
-            print(f"Image not found for Player 2: {player2_path}")
-
-        print(f"Updated images: Player 1 = {player1_image}, Player 2 = {player2_image}")
+        client = obs.ReqClient(host=OBS_HOST, port=OBS_PORT, password=password)
+        print("Connected to OBS.")
+        return client
     except Exception as e:
-        print(f"Failed to update image sources: {e}")
+        print(f"Failed to connect to OBS: {e}")
+        messagebox.showerror("Error", "Failed to connect to OBS. Check your settings.")
+        return None
 
+def update_obs_text(client, source, text):
+    """Update OBS text source."""
+    try:
+        client.set_input_settings(source, {"text": text}, overlay=True)
+        print(f"Updated {source} to {text}")
+    except Exception as e:
+        print(f"Failed to update OBS text source: {e}")
 
-def main():
-    client = connect_to_obs()
+def update_obs_image(client, source, image_name):
+    """Update OBS image source."""
+    try:
+        image_path = os.path.join(IMAGE_DIRECTORY, f"{image_name}.png")
+        if os.path.exists(image_path):
+            client.set_input_settings(source, {"file": image_path}, overlay=True)
+            print(f"Updated {source} to {image_name}")
+        else:
+            print(f"Image not found: {image_path}")
+    except Exception as e:
+        print(f"Failed to update OBS image source: {e}")
+
+def on_update():
+    """Handle update button click."""
+    password = get_obs_password()
+    client = connect_to_obs(password)
     if not client:
         return
 
-    last_names = ("", "")
-    last_images = ("", "")
+    # Player 1
+    player1_name = player1_name_var.get()
+    player1_char = player1_char_var.get()
+    update_obs_text(client, PLAYER_1_SOURCE, player1_name)
+    update_obs_image(client, PLAYER_1_IMAGE_SOURCE, player1_char)
 
-    try:
-        while True:
-            try:
-                with open(TXT_FILE_PATH, "r") as f:
-                    lines = f.read().strip().split("\n")
-                    if len(lines) >= 6:
-                        player1, player2 = lines[1], lines[4]
-                        player1_image, player2_image = lines[2], lines[5]
-                        if (player1, player2) != last_names:
-                            update_text_sources(client, player1, player2)
-                            last_names = (player1, player2)
+    # Player 2
+    player2_name = player2_name_var.get()
+    player2_char = player2_char_var.get()
+    update_obs_text(client, PLAYER_2_SOURCE, player2_name)
+    update_obs_image(client, PLAYER_2_IMAGE_SOURCE, player2_char)
 
-                        if (player1_image, player2_image) != last_images:
-                            update_image_sources(client, player1_image, player2_image)
-                            last_images = (player1_image, player2_image)
-            except FileNotFoundError:
-                print(f"File not found: {TXT_FILE_PATH}. Please create it.")
+    # Set Count
+    set_count = f"{set_count_1_var.get()} - {set_count_2_var.get()}"
+    update_obs_text(client, SET_COUNT_SOURCE, set_count)
 
-            time.sleep(1)  # Check for updates every second
-    except KeyboardInterrupt:
-        print("Exiting...")
-    finally:
-        client.disconnect()
+    messagebox.showinfo("Success", "Updated OBS successfully.")
 
-if __name__ == "__main__":
-    main()
+# Tkinter GUI Setup
+root = tk.Tk()
+root.title("OBS Stream Manager")
+root.geometry("400x400")
+
+# Dropdown options
+character_options = [os.path.splitext(f)[0] for f in os.listdir(IMAGE_DIRECTORY) if f.endswith(".png")]
+
+# Player 1
+tk.Label(root, text="Player 1").grid(row=0, column=0, pady=5)
+player1_name_var = tk.StringVar(value="Player 1")
+tk.Entry(root, textvariable=player1_name_var).grid(row=0, column=1)
+player1_char_var = tk.StringVar(value=character_options[0] if character_options else "")
+tk.Label(root, text="Character").grid(row=0, column=2)
+ttk.Combobox(root, textvariable=player1_char_var, values=character_options).grid(row=0, column=3)
+
+# Player 2
+tk.Label(root, text="Player 2").grid(row=1, column=0, pady=5)
+player2_name_var = tk.StringVar(value="Player 2")
+tk.Entry(root, textvariable=player2_name_var).grid(row=1, column=1)
+player2_char_var = tk.StringVar(value=character_options[0] if character_options else "")
+tk.Label(root, text="Character").grid(row=1, column=2)
+ttk.Combobox(root, textvariable=player2_char_var, values=character_options).grid(row=1, column=3)
+
+# Set Count
+tk.Label(root, text="Set Count").grid(row=2, column=0, pady=5)
+set_count_1_var = tk.StringVar(value="0")
+tk.Entry(root, textvariable=set_count_1_var, width=5).grid(row=2, column=1)
+tk.Label(root, text="-").grid(row=2, column=2)
+set_count_2_var = tk.StringVar(value="0")
+tk.Entry(root, textvariable=set_count_2_var, width=5).grid(row=2, column=3)
+
+# Update Button
+tk.Button(root, text="Update OBS", command=on_update).grid(row=3, column=0, columnspan=4, pady=20)
+
+root.mainloop()
