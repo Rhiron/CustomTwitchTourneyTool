@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, simpledialog, messagebox
 import obsws_python as obs
 import os
 
@@ -18,22 +18,39 @@ PLAYER_2_IMAGE_SOURCE = "Player2Image"
 SET_COUNT_SOURCE = "SetCount"
 
 def get_obs_password():
-    """Read OBS password from the config file."""
+    """Read OBS password from the config file or prompt the user."""
     try:
         with open(CONFIG_FILE_PATH, "r") as f:
             for line in f:
                 if line.startswith("OBS_PASSWORD="):
                     return line.strip().split("=", 1)[1]
     except FileNotFoundError:
-        print("config.txt not found. Please create it.")
-    return ""
+        print("config.txt not found.")
+        return prompt_for_password()
 
-OBS_PASSWORD = get_obs_password()
+def save_obs_password(password):
+    """Save the OBS password to the config file."""
+    try:
+        with open(CONFIG_FILE_PATH, "w") as f:
+            f.write(f"OBS_PASSWORD={password}\n")
+        print("OBS password saved to config.txt.")
+    except Exception as e:
+        print(f"Failed to save OBS password: {e}")
+        messagebox.showerror("Error", "Failed to save OBS password.")
 
-def connect_to_obs():
+def prompt_for_password():
+    """Prompt the user for the OBS password using a GUI."""
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    password = simpledialog.askstring("OBS Password", "Enter your OBS WebSocket password:", show='*')
+    if password:
+        save_obs_password(password)
+    return password or ""
+
+def connect_to_obs(password):
     """Connect to OBS WebSocket."""
     try:
-        client = obs.ReqClient(host=OBS_HOST, port=OBS_PORT, password=OBS_PASSWORD)
+        client = obs.ReqClient(host=OBS_HOST, port=OBS_PORT, password=password)
         print("Connected to OBS.")
         return client
     except Exception as e:
@@ -63,7 +80,8 @@ def update_obs_image(client, source, image_name):
 
 def on_update():
     """Handle update button click."""
-    client = connect_to_obs()
+    password = get_obs_password()
+    client = connect_to_obs(password)
     if not client:
         return
 
@@ -84,7 +102,6 @@ def on_update():
     update_obs_text(client, SET_COUNT_SOURCE, set_count)
 
     messagebox.showinfo("Success", "Updated OBS successfully.")
-    client.disconnect()
 
 # Tkinter GUI Setup
 root = tk.Tk()
@@ -96,7 +113,7 @@ character_options = [os.path.splitext(f)[0] for f in os.listdir(IMAGE_DIRECTORY)
 
 # Player 1
 tk.Label(root, text="Player 1").grid(row=0, column=0, pady=5)
-player1_name_var = tk.StringVar()
+player1_name_var = tk.StringVar(value="Player 1")
 tk.Entry(root, textvariable=player1_name_var).grid(row=0, column=1)
 player1_char_var = tk.StringVar(value=character_options[0] if character_options else "")
 tk.Label(root, text="Character").grid(row=0, column=2)
@@ -104,7 +121,7 @@ ttk.Combobox(root, textvariable=player1_char_var, values=character_options).grid
 
 # Player 2
 tk.Label(root, text="Player 2").grid(row=1, column=0, pady=5)
-player2_name_var = tk.StringVar()
+player2_name_var = tk.StringVar(value="Player 2")
 tk.Entry(root, textvariable=player2_name_var).grid(row=1, column=1)
 player2_char_var = tk.StringVar(value=character_options[0] if character_options else "")
 tk.Label(root, text="Character").grid(row=1, column=2)
