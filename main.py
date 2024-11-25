@@ -2,35 +2,195 @@ import customtkinter as ctk
 from tkinter import simpledialog, messagebox
 import obsws_python as obs
 import os
+import requests
+from urllib.parse import urlparse
+
 
 # OBS WebSocket connection details
 OBS_HOST = "localhost"  # Default localhost
 OBS_PORT = 4455         # Default WebSocket port
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-IMAGE_DIRECTORY = os.path.join(BASE_DIR, "StockIcons")
+STOCK_IMAGE_DIRECTORY = os.path.join(BASE_DIR, "StockIcons")
+FRAME_IMAGE_DIRECTORY = os.path.join(BASE_DIR, "Char_PNGs")
 CONFIG_FILE_PATH = os.path.join(BASE_DIR, "config.txt")
-
-# OBS source names
-PLAYER_1_SOURCE = "Player1Name"
-PLAYER_2_SOURCE = "Player2Name"
-PLAYER_1_IMAGE_SOURCE = "Player1Image"
-PLAYER_2_IMAGE_SOURCE = "Player2Image"
-SET_COUNT_SOURCE = "SetCount"
+STARTGG_API_URL = "https://api.start.gg/gql/alpha"
 
 # Set CustomTkinter appearance
 ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-blue"
 
-def get_obs_password():
-    """Read OBS password from the config file or prompt the user."""
-    try:
+def read_config():
+    """Read the config file and return its contents as a dictionary."""
+    config = {}
+    if os.path.exists(CONFIG_FILE_PATH):
         with open(CONFIG_FILE_PATH, "r") as f:
             for line in f:
-                if line.startswith("OBS_PASSWORD="):
-                    return line.strip().split("=", 1)[1]
-    except FileNotFoundError:
-        print("config.txt not found.")
-        return prompt_for_password()
+                key, _, value = line.partition("=")
+                config[key.strip()] = value.strip()
+    return config
+
+def save_config(config):
+    """Save the provided dictionary to the config file."""
+    try:
+        with open(CONFIG_FILE_PATH, "w") as f:
+            for key, value in config.items():
+                f.write(f"{key}={value}\n")
+        print("Config file updated successfully.")
+    except Exception as e:
+        print(f"Failed to save config file: {e}")
+        messagebox.showerror("Error", "Failed to save the config file.")
+
+def get_or_prompt_config_value(config, key, prompt_message):
+    """Get a value from the config file or prompt the user if it is missing."""
+    value = config.get(key)
+    if not value:  # Prompt the user if the value is missing
+        root = ctk.CTk()
+        root.withdraw()  # Hide the root window
+        value = simpledialog.askstring("Configuration", prompt_message)
+        if value:
+            config[key] = value
+            save_config(config)
+    return value
+
+
+def fetch_startgg_data(query, variables=None):
+    """Send a GraphQL request to Start.gg."""
+    headers = {
+        "Authorization": f"Bearer {STARTGG_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "query": query,
+        "variables": variables or {}
+    }
+
+    try:
+        response = requests.post(STARTGG_API_URL, json=payload, headers=headers)
+        response.raise_for_status()  # Raise HTTPError for bad responses
+        data = response.json()
+        return data
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending request: {e}")
+        return None
+    
+def get_event_entrants(event_id, page=1, per_page=20):
+    """Fetch entrants for a specific event."""
+    query = """
+    query EventEntrants($eventId: ID!, $page: Int!, $perPage: Int!) {
+      event(id: $eventId) {
+        id
+        name
+        entrants(query: { page: $page, perPage: $perPage }) {
+          nodes {
+            id
+            participants {
+              id
+              gamerTag
+            }
+          }
+        }
+      }
+    }
+    """
+    variables = {
+        "eventId": event_id,
+        "page": page,
+        "perPage": per_page
+    }
+
+    data = fetch_startgg_data(query, variables)
+    if data:
+        entrants = data["data"]["event"]["entrants"]["nodes"]
+        return [{"id": node["id"], "gamerTags": [p["gamerTag"] for p in node["participants"]]} for node in entrants]
+    return None
+
+def get_gamer_tags(event_id, page=1, per_page=20):
+    """Fetch gamer tags for dropdown options."""
+    entrants = get_event_entrants(event_id, page, per_page)
+    if entrants:
+        # Extract gamerTags into a flat list
+        gamer_tags = [gamer_tag for entrant in entrants for gamer_tag in entrant["gamerTags"]]
+        return sorted(gamer_tags)  # Sort alphabetically for dropdown
+    return []
+
+def get_event_id(Slug):
+    Slug_Formatted = extract_path_from_url(Slug)
+    """Fetch the Event id for specific event"""
+    query = """
+    query getEventId($slug: String) {
+        event(slug: $slug) {
+            id
+            name
+        }
+    }
+    """
+    variables = {
+        "slug": Slug_Formatted
+    }
+
+    data = fetch_startgg_data(query, variables)
+    print(Slug_Formatted)
+    if data:
+        eventId = data["data"]["event"]["id"]
+        return eventId
+    return None
+    
+
+def extract_path_from_url(url):
+    """Extract the relevant path from a Start.gg URL."""
+    parsed_url = urlparse(url) 
+    full_path = parsed_url.path
+    relevant_path = "/".join(full_path.split("/")[:5])
+    return relevant_path[1:]
+
+def get_startgg_api_key():
+    """Get the Start.gg API key from the config file or prompt the user."""
+    config = read_config()
+    return get_or_prompt_config_value(config, "STARTGG_API_KEY", "Enter your Start.gg API Key:")
+
+def save_startgg_api_key(api_key):
+    """Save the Start.gg API key to the config file."""
+    try:
+        # Check if config file exists and read its content
+        config_content = []
+        if os.path.exists(CONFIG_FILE_PATH):
+            with open(CONFIG_FILE_PATH, "r") as f:
+                config_content = f.readlines()
+
+        # Write the updated config file
+        with open(CONFIG_FILE_PATH, "w") as f:
+            key_found = False
+            for line in config_content:
+                if line.startswith("STARTGG_API_KEY="):
+                    f.write(f"STARTGG_API_KEY={api_key}\n")
+                    key_found = True
+                else:
+                    f.write(line)
+            if not key_found:
+                f.write(f"STARTGG_API_KEY={api_key}\n")
+        print("Start.gg API key saved to config.txt.")
+    except Exception as e:
+        print(f"Failed to save Start.gg API key: {e}")
+        messagebox.showerror("Error", "Failed to save Start.gg API key.")
+
+def prompt_for_startgg_api_key():
+    """Prompt the user for the Start.gg API key using a GUI."""
+    root = ctk.CTk()
+    root.withdraw()  # Hide the root window
+    api_key = simpledialog.askstring("Start.gg API Key", "Enter your Start.gg API Key:")
+    if api_key:
+        save_startgg_api_key(api_key)
+    return api_key or ""
+
+STARTGG_API_KEY = get_startgg_api_key()
+
+def get_obs_password():
+    """Get the OBS password from the config file or prompt the user."""
+    config = read_config()
+    return get_or_prompt_config_value(config, "OBS_PASSWORD", "Enter your OBS WebSocket password:")
+
+OBS_PASSWORD = get_obs_password()
 
 def save_obs_password(password):
     """Save the OBS password to the config file."""
@@ -65,22 +225,31 @@ def connect_to_obs(password):
 def update_obs_text(client, source, text):
     """Update OBS text source."""
     try:
+        print(f"Updating text source '{source}' with text: '{text}'")
         client.set_input_settings(source, {"text": text}, overlay=True)
-        print(f"Updated {source} to {text}")
+        print(f"Successfully updated text source: {source}")
     except Exception as e:
-        print(f"Failed to update OBS text source: {e}")
+        print(f"Failed to update OBS text source '{source}': {e}")
+        messagebox.showerror("Error", f"Failed to update OBS text source '{source}': {e}")
+
 
 def update_obs_image(client, source, image_name):
     """Update OBS image source."""
     try:
-        image_path = os.path.join(IMAGE_DIRECTORY, f"{image_name}.png")
+        if switch_var.get() == "Stock Icons":
+            image_path = os.path.join(STOCK_IMAGE_DIRECTORY, f"{image_name}.png")
+        elif switch_var.get() == "Character Frames":
+            image_path = os.path.join(FRAME_IMAGE_DIRECTORY, f"{image_name}.png")
         if os.path.exists(image_path):
+            print(f"Updating image source '{source}' with image: '{image_path}'")
             client.set_input_settings(source, {"file": image_path}, overlay=True)
-            print(f"Updated {source} to {image_name}")
+            print(f"Successfully updated image source: {source}")
         else:
-            print(f"Image not found: {image_path}")
+            print(f"Image not found for source '{source}': {image_path}")
+            messagebox.showerror("Error", f"Image not found: {image_path}")
     except Exception as e:
-        print(f"Failed to update OBS image source: {e}")
+        print(f"Failed to update OBS image source '{source}': {e}")
+        messagebox.showerror("Error", f"Failed to update OBS image source '{source}': {e}")
 
 def on_update():
     """Handle update button click."""
@@ -92,25 +261,50 @@ def on_update():
     # Player 1
     player1_name = player1_name_var.get()
     player1_char = player1_char_var.get()
-    update_obs_text(client, PLAYER_1_SOURCE, player1_name)
-    update_obs_image(client, PLAYER_1_IMAGE_SOURCE, player1_char)
+    update_obs_text(client, "Player1Name", player1_name)
+    update_obs_image(client, "Player1Image", player1_char)
 
     # Player 2
     player2_name = player2_name_var.get()
     player2_char = player2_char_var.get()
-    update_obs_text(client, PLAYER_2_SOURCE, player2_name)
-    update_obs_image(client, PLAYER_2_IMAGE_SOURCE, player2_char)
+    update_obs_text(client, "Player2Name", player2_name)
+    update_obs_image(client, "Player2Image", player2_char)
 
     # Set Count
     set_count = f"{set_count_1_var.get()} - {set_count_2_var.get()}"
-    update_obs_text(client, SET_COUNT_SOURCE, set_count)
-
-    messagebox.showinfo("Success", "Updated OBS successfully.")
+    update_obs_text(client, "SetCount", set_count)
 
 # Dropdown options
-character_options = [os.path.splitext(f)[0] for f in os.listdir(IMAGE_DIRECTORY) if f.endswith(".png")]
+character_options = [os.path.splitext(f)[0] for f in os.listdir(STOCK_IMAGE_DIRECTORY) if f.endswith(".png")]
+name_options = []
 
-import customtkinter as ctk
+def update_url_and_names():
+    """Fetch gamer tags based on the event URL and update dropdowns."""
+    event_url = event_url_var.get()
+    if not event_url:
+        messagebox.showerror("Error", "Event URL is empty. Please provide a valid URL.")
+        return
+
+    event_id = get_event_id(event_url)
+    if not event_id:
+        messagebox.showerror("Error", "Failed to fetch event ID. Check the URL and try again.")
+        return
+
+    # Fetch gamer tags and update dropdown options
+    gamer_tags = get_gamer_tags(event_id)
+    if not gamer_tags:
+        messagebox.showerror("Error", "Failed to fetch gamer tags. Try again later.")
+        return
+
+    # Update dropdowns for Player 1 and Player 2
+    player1_name_dropdown.configure(values=gamer_tags)
+    player2_name_dropdown.configure(values=gamer_tags)
+    messagebox.showinfo("Success", "Gamer tags updated successfully!")
+
+def switch_event():
+    print("switch toggled, current value:", switch_var.get())
+    switch.configure(text=switch_var.get())
+
 
 # Set CustomTkinter appearance and theme
 ctk.set_appearance_mode("System")  # Modes: "System", "Dark", "Light"
@@ -118,7 +312,7 @@ ctk.set_default_color_theme("blue")  # Themes: "blue", "green", "dark-blue"
 
 # Initialize main window
 root = ctk.CTk()
-root.title("Example Title")
+root.title("OBS Set Manager")
 root.geometry("650x300")
 root.resizable(False, False)  # Disable resizing to enforce fixed dimensions
 
@@ -144,14 +338,14 @@ player1_label = ctk.CTkLabel(player1_frame, text="Player 1")
 player1_label.grid(row=0, column=0, pady=5, sticky="ew")
 
 player1_name_var = ctk.StringVar()
-player1_name_dropdown = ctk.CTkComboBox(player1_frame, variable=player1_name_var, values=["Name1", "Name2"])
+player1_name_dropdown = ctk.CTkComboBox(player1_frame, variable=player1_name_var, values=name_options)
 player1_name_dropdown.grid(row=1, column=0, pady=5, padx=10, sticky="ew")
 
 player1_char_label = ctk.CTkLabel(player1_frame, text="Char:")
 player1_char_label.grid(row=2, column=0, pady=5, sticky="ew")
 
 player1_char_var = ctk.StringVar()
-player1_char_dropdown = ctk.CTkComboBox(player1_frame, variable=player1_char_var, values=["Char1", "Char2"])
+player1_char_dropdown = ctk.CTkComboBox(player1_frame, variable=player1_char_var, values=character_options)
 player1_char_dropdown.grid(row=3, column=0, pady=5, padx=10, sticky="ew")
 
 # Set Count Frame
@@ -175,8 +369,12 @@ set_count_2_var = ctk.StringVar(value="0")
 set_count_2_entry = ctk.CTkEntry(set_count_frame, textvariable=set_count_2_var, width=40, justify="center")
 set_count_2_entry.grid(row=1, column=2, padx=5, pady=5, sticky="ew")
 
-update_button = ctk.CTkButton(set_count_frame, text="Update OBS", command=lambda: print("OBS Updated"))
+update_button = ctk.CTkButton(set_count_frame, text="Update OBS", command=on_update)
 update_button.grid(row=2, column=0, columnspan=3, pady=10)
+
+switch_var = ctk.StringVar(value="Character Frames")
+switch = ctk.CTkSwitch(set_count_frame, text=switch_var.get(), command=switch_event, variable=switch_var, onvalue="Character Frames", offvalue="Stock Icons")
+switch.grid(row=3, column=0, columnspan=3, pady=10)
 
 # Player 2 Frame
 player2_frame = ctk.CTkFrame(root, width=frame_width, height=frame_height)
@@ -188,14 +386,14 @@ player2_label = ctk.CTkLabel(player2_frame, text="Player 2")
 player2_label.grid(row=0, column=0, pady=5, sticky="ew")
 
 player2_name_var = ctk.StringVar()
-player2_name_dropdown = ctk.CTkComboBox(player2_frame, variable=player2_name_var, values=["Name1", "Name2"])
+player2_name_dropdown = ctk.CTkComboBox(player2_frame, variable=player2_name_var, values=name_options)
 player2_name_dropdown.grid(row=1, column=0, pady=5, padx=10, sticky="ew")
 
 player2_char_label = ctk.CTkLabel(player2_frame, text="Char:")
 player2_char_label.grid(row=2, column=0, pady=5, sticky="ew")
 
 player2_char_var = ctk.StringVar()
-player2_char_dropdown = ctk.CTkComboBox(player2_frame, variable=player2_char_var, values=["Char1", "Char2"])
+player2_char_dropdown = ctk.CTkComboBox(player2_frame, variable=player2_char_var, values=character_options)
 player2_char_dropdown.grid(row=3, column=0, pady=5, padx=10, sticky="ew")
 
 # Event URL Section
@@ -204,6 +402,9 @@ event_url_label.grid(row=2, column=0, columnspan=1, pady=10, sticky="w", padx=10
 
 event_url_var = ctk.StringVar()
 event_url_entry = ctk.CTkEntry(root, textvariable=event_url_var, width=500)
-event_url_entry.grid(row=2, column=1, columnspan=2, pady=10, sticky="ew")
+event_url_entry.grid(row=2, column=1, columnspan=1, pady=10, sticky="ew")
+
+url_button = ctk.CTkButton(root, text="Update URL", command=update_url_and_names)
+url_button.grid(row=2, column=2, columnspan=1, pady=10, padx=10, sticky="ew")
 
 root.mainloop()
