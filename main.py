@@ -1,5 +1,5 @@
-import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox
+import customtkinter as ctk
+from tkinter import simpledialog, messagebox
 import obsws_python as obs
 import os
 
@@ -16,6 +16,10 @@ PLAYER_2_SOURCE = "Player2Name"
 PLAYER_1_IMAGE_SOURCE = "Player1Image"
 PLAYER_2_IMAGE_SOURCE = "Player2Image"
 SET_COUNT_SOURCE = "SetCount"
+
+# Set CustomTkinter appearance
+ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
+ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-blue"
 
 def get_obs_password():
     """Read OBS password from the config file or prompt the user."""
@@ -40,7 +44,7 @@ def save_obs_password(password):
 
 def prompt_for_password():
     """Prompt the user for the OBS password using a GUI."""
-    root = tk.Tk()
+    root = ctk.CTk()
     root.withdraw()  # Hide the root window
     password = simpledialog.askstring("OBS Password", "Enter your OBS WebSocket password:", show='*')
     if password:
@@ -103,39 +107,39 @@ def on_update():
 
     messagebox.showinfo("Success", "Updated OBS successfully.")
 
-# Tkinter GUI Setup
-root = tk.Tk()
-root.title("OBS Stream Manager")
-root.geometry("400x400")
+# CustomTkinter GUI Setup
+root = ctk.CTk()
+root.title("OBS Stream Tourney Manager")
+root.geometry("500x500")
 
 # Dropdown options
 character_options = [os.path.splitext(f)[0] for f in os.listdir(IMAGE_DIRECTORY) if f.endswith(".png")]
 
 # Player 1
-tk.Label(root, text="Player 1").grid(row=0, column=0, pady=5)
-player1_name_var = tk.StringVar(value="Player 1")
-tk.Entry(root, textvariable=player1_name_var).grid(row=0, column=1)
-player1_char_var = tk.StringVar(value=character_options[0] if character_options else "")
-tk.Label(root, text="Character").grid(row=0, column=2)
-ttk.Combobox(root, textvariable=player1_char_var, values=character_options).grid(row=0, column=3)
+ctk.CTkLabel(root, text="Player 1").grid(row=0, column=0, pady=10, padx=10)
+player1_name_var = ctk.StringVar(value="Player 1")
+ctk.CTkEntry(root, textvariable=player1_name_var, width=150).grid(row=0, column=1, padx=10)
+player1_char_var = ctk.StringVar(value=character_options[0] if character_options else "")
+ctk.CTkLabel(root, text="Character").grid(row=0, column=2, pady=10)
+ctk.CTkComboBox(root, values=character_options, variable=player1_char_var).grid(row=0, column=3, padx=10)
 
 # Player 2
-tk.Label(root, text="Player 2").grid(row=1, column=0, pady=5)
-player2_name_var = tk.StringVar(value="Player 2")
-tk.Entry(root, textvariable=player2_name_var).grid(row=1, column=1)
-player2_char_var = tk.StringVar(value=character_options[0] if character_options else "")
-tk.Label(root, text="Character").grid(row=1, column=2)
-ttk.Combobox(root, textvariable=player2_char_var, values=character_options).grid(row=1, column=3)
+ctk.CTkLabel(root, text="Player 2").grid(row=1, column=0, pady=10, padx=10)
+player2_name_var = ctk.StringVar(value="Player 2")
+ctk.CTkEntry(root, textvariable=player2_name_var, width=150).grid(row=1, column=1, padx=10)
+player2_char_var = ctk.StringVar(value=character_options[0] if character_options else "")
+ctk.CTkLabel(root, text="Character").grid(row=1, column=2, pady=10)
+ctk.CTkComboBox(root, values=character_options, variable=player2_char_var).grid(row=1, column=3, padx=10)
 
 # Set Count
-tk.Label(root, text="Set Count").grid(row=2, column=0, pady=5)
-set_count_1_var = tk.StringVar(value="0")
-tk.Entry(root, textvariable=set_count_1_var, width=5).grid(row=2, column=1)
-tk.Label(root, text="-").grid(row=2, column=2)
-set_count_2_var = tk.StringVar(value="0")
-tk.Entry(root, textvariable=set_count_2_var, width=5).grid(row=2, column=3)
+ctk.CTkLabel(root, text="Set Count").grid(row=2, column=0, pady=10, padx=10)
+set_count_1_var = ctk.StringVar(value="0")
+ctk.CTkEntry(root, textvariable=set_count_1_var, width=50).grid(row=2, column=1, padx=5)
+ctk.CTkLabel(root, text="-").grid(row=2, column=2, pady=10)
+set_count_2_var = ctk.StringVar(value="0")
+ctk.CTkEntry(root, textvariable=set_count_2_var, width=50).grid(row=2, column=3, padx=5)
 
 # Update Button
-tk.Button(root, text="Update OBS", command=on_update).grid(row=3, column=0, columnspan=4, pady=20)
+ctk.CTkButton(root, text="Update OBS", command=on_update).grid(row=3, column=0, columnspan=4, pady=20)
 
 root.mainloop()
