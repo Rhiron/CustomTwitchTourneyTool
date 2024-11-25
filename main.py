@@ -107,39 +107,103 @@ def on_update():
 
     messagebox.showinfo("Success", "Updated OBS successfully.")
 
-# CustomTkinter GUI Setup
-root = ctk.CTk()
-root.title("OBS Stream Tourney Manager")
-root.geometry("500x500")
-
 # Dropdown options
 character_options = [os.path.splitext(f)[0] for f in os.listdir(IMAGE_DIRECTORY) if f.endswith(".png")]
 
-# Player 1
-ctk.CTkLabel(root, text="Player 1").grid(row=0, column=0, pady=10, padx=10)
-player1_name_var = ctk.StringVar(value="Player 1")
-ctk.CTkEntry(root, textvariable=player1_name_var, width=150).grid(row=0, column=1, padx=10)
-player1_char_var = ctk.StringVar(value=character_options[0] if character_options else "")
-ctk.CTkLabel(root, text="Character").grid(row=0, column=2, pady=10)
-ctk.CTkComboBox(root, values=character_options, variable=player1_char_var).grid(row=0, column=3, padx=10)
+import customtkinter as ctk
 
-# Player 2
-ctk.CTkLabel(root, text="Player 2").grid(row=1, column=0, pady=10, padx=10)
-player2_name_var = ctk.StringVar(value="Player 2")
-ctk.CTkEntry(root, textvariable=player2_name_var, width=150).grid(row=1, column=1, padx=10)
-player2_char_var = ctk.StringVar(value=character_options[0] if character_options else "")
-ctk.CTkLabel(root, text="Character").grid(row=1, column=2, pady=10)
-ctk.CTkComboBox(root, values=character_options, variable=player2_char_var).grid(row=1, column=3, padx=10)
+# Set CustomTkinter appearance and theme
+ctk.set_appearance_mode("System")  # Modes: "System", "Dark", "Light"
+ctk.set_default_color_theme("blue")  # Themes: "blue", "green", "dark-blue"
 
-# Set Count
-ctk.CTkLabel(root, text="Set Count").grid(row=2, column=0, pady=10, padx=10)
+# Initialize main window
+root = ctk.CTk()
+root.title("Example Title")
+root.geometry("650x300")
+root.resizable(False, False)  # Disable resizing to enforce fixed dimensions
+
+# Configure grid layout for symmetry
+root.grid_columnconfigure((0, 1, 2), weight=1, uniform="column")  # Equal column sizes
+root.grid_rowconfigure(1, weight=1)  # Center row for the frames
+
+# Title Label
+title_label = ctk.CTkLabel(root, text="Current Stream Set", font=("Arial", 18, "bold"))
+title_label.grid(row=0, column=0, columnspan=3, pady=10)
+
+# Fixed Frame Dimensions
+frame_width = 180
+frame_height = 130
+
+# Player 1 Frame
+player1_frame = ctk.CTkFrame(root, width=frame_width, height=frame_height)
+player1_frame.grid(row=1, column=0, padx=25, pady=10, sticky="nsew")
+player1_frame.grid_propagate(False)  # Prevent resizing based on content
+
+# Player 1 Widgets (Centered)
+player1_label = ctk.CTkLabel(player1_frame, text="Player 1")
+player1_label.grid(row=0, column=0, pady=5, sticky="ew")
+
+player1_name_var = ctk.StringVar()
+player1_name_dropdown = ctk.CTkComboBox(player1_frame, variable=player1_name_var, values=["Name1", "Name2"])
+player1_name_dropdown.grid(row=1, column=0, pady=5, padx=10, sticky="ew")
+
+player1_char_label = ctk.CTkLabel(player1_frame, text="Char:")
+player1_char_label.grid(row=2, column=0, pady=5, sticky="ew")
+
+player1_char_var = ctk.StringVar()
+player1_char_dropdown = ctk.CTkComboBox(player1_frame, variable=player1_char_var, values=["Char1", "Char2"])
+player1_char_dropdown.grid(row=3, column=0, pady=5, padx=10, sticky="ew")
+
+# Set Count Frame
+set_count_frame = ctk.CTkFrame(root, width=frame_width, height=frame_height)
+set_count_frame.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+set_count_frame.grid_propagate(False)  # Prevent resizing based on content
+set_count_frame.grid_columnconfigure((0, 1, 2), weight=1, uniform="count")  # Ensure columns are evenly spaced
+
+# Set Count Widgets (Centered)
+set_count_label = ctk.CTkLabel(set_count_frame, text="Set Count", font=("Arial", 14, "bold"))
+set_count_label.grid(row=0, column=0, columnspan=3, pady=5)
+
 set_count_1_var = ctk.StringVar(value="0")
-ctk.CTkEntry(root, textvariable=set_count_1_var, width=50).grid(row=2, column=1, padx=5)
-ctk.CTkLabel(root, text="-").grid(row=2, column=2, pady=10)
-set_count_2_var = ctk.StringVar(value="0")
-ctk.CTkEntry(root, textvariable=set_count_2_var, width=50).grid(row=2, column=3, padx=5)
+set_count_1_entry = ctk.CTkEntry(set_count_frame, textvariable=set_count_1_var, width=40, justify="center")
+set_count_1_entry.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
 
-# Update Button
-ctk.CTkButton(root, text="Update OBS", command=on_update).grid(row=3, column=0, columnspan=4, pady=20)
+set_count_dash = ctk.CTkLabel(set_count_frame, text="-")
+set_count_dash.grid(row=1, column=1, pady=5)
+
+set_count_2_var = ctk.StringVar(value="0")
+set_count_2_entry = ctk.CTkEntry(set_count_frame, textvariable=set_count_2_var, width=40, justify="center")
+set_count_2_entry.grid(row=1, column=2, padx=5, pady=5, sticky="ew")
+
+update_button = ctk.CTkButton(set_count_frame, text="Update OBS", command=lambda: print("OBS Updated"))
+update_button.grid(row=2, column=0, columnspan=3, pady=10)
+
+# Player 2 Frame
+player2_frame = ctk.CTkFrame(root, width=frame_width, height=frame_height)
+player2_frame.grid(row=1, column=2, padx=30, pady=10, sticky="nsew")
+player2_frame.grid_propagate(False)  # Prevent resizing based on content
+
+# Player 2 Widgets (Centered)
+player2_label = ctk.CTkLabel(player2_frame, text="Player 2")
+player2_label.grid(row=0, column=0, pady=5, sticky="ew")
+
+player2_name_var = ctk.StringVar()
+player2_name_dropdown = ctk.CTkComboBox(player2_frame, variable=player2_name_var, values=["Name1", "Name2"])
+player2_name_dropdown.grid(row=1, column=0, pady=5, padx=10, sticky="ew")
+
+player2_char_label = ctk.CTkLabel(player2_frame, text="Char:")
+player2_char_label.grid(row=2, column=0, pady=5, sticky="ew")
+
+player2_char_var = ctk.StringVar()
+player2_char_dropdown = ctk.CTkComboBox(player2_frame, variable=player2_char_var, values=["Char1", "Char2"])
+player2_char_dropdown.grid(row=3, column=0, pady=5, padx=10, sticky="ew")
+
+# Event URL Section
+event_url_label = ctk.CTkLabel(root, text="Event URL:", font=("Arial", 12), anchor="e")
+event_url_label.grid(row=2, column=0, columnspan=1, pady=10, sticky="w", padx=10)
+
+event_url_var = ctk.StringVar()
+event_url_entry = ctk.CTkEntry(root, textvariable=event_url_var, width=500)
+event_url_entry.grid(row=2, column=1, columnspan=2, pady=10, sticky="ew")
 
 root.mainloop()
